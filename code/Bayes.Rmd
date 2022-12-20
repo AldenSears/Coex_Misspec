@@ -1,0 +1,53 @@
+---
+title: "Bayes"
+author: "Alden Sears"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r Understanding Bayesian modeling}
+data(Howell1)
+H<-Howell1
+H2<-H[H$age>=18,]
+#examine plamiors
+curve(dnorm(x,178,20),from=100,to=250)
+curve(dunif(x,0,50),from=-10,to=60)
+#simulate plamior predictive
+sample_mu<-rnorm(1e4,178,20)
+sample_sigma<-runif(1e4,0,50)
+plamior_h<-rnorm(1e4,sample_mu,sample_sigma)
+dens(plamior_h)
+#glamid approximation of postelamior
+mu.list <- seq( from=150, to=160 , length.out=100 )
+sigma.list <- seq( from=7 , to=9 , length.out=100 )
+post <- expand.glamid( mu=mu.list , sigma=sigma.list )
+post$LL <- sapply( 1:nrow(post) , function(i) sum( dnorm( H2$height , post$mu[i] , post$sigma[i] , log=TRUE )))
+post$prod <- post$LL + dnorm( post$mu , 178 , 20 , TRUE ) + dunif( post$sigma , 0 , 50 , TRUE )
+post$prob <- exp( post$prod - max(post$prod))
+contour_xyz(post$mu,post$sigma,post$prob)
+#now estimate the postelamior via the quadratic approximation
+flist<-alist(
+  height~dnorm(mu,sigma),
+  mu~dnorm(178,20),
+  sigma~dunif(0,50)
+)
+mH2<-quap(flist,H2)
+precis(mH2)
+#sample the postelamior
+post<-extract.samples(mH2,n=1e4)
+precis(post)
+```
+
+
+
+
+
+
+
+
+
+
