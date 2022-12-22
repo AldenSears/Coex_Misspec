@@ -170,6 +170,46 @@ postrick<-brm(rickbrms,
 print(summary(postrick),digits=5)
 ```
 
+```{r}
+gen_gen <- function(spi,rs,N,alpha_mat,model,obs_error_dist,...){
+  # checks
+  if (is.character(spi) == FALSE){
+    stop("object 'spi' object not of type 'character'")
+  } else if (is.vector(rs) == FALSE){
+    stop("object 'rs' not of type 'vector'")
+  } else if (is.vector(N) == FALSE){
+    stop("object 'N' not of type 'vector'")
+  } else if (is.matrix(alpha_mat) == FALSE){
+    stop("object 'alpha_mat' not of type 'matrix'")
+  } else if (model %in% c("LV","BH","R") == FALSE){
+    stop("specified model 'model' must be one of 'LV' (Lotka-Volterra), 'BH' (Beverton-Holt), or 'R' (Ricker)")
+  } else if (length(rs) != length(N) | nrow(alpha_mat) != ncol(alpha_mat) | length(N) != nrow(alpha_mat)){
+    stop("vector lengths and alpha_mat row and column lengths must all be equal")
+  } else if (spi %in% rownames(alpha_mat) == FALSE){
+    stop("focal species 'spi' must have the same name as one of the rows in 'alpha_mat'")
+  } else if (names(rs) != rownames(alpha_mat) | names(N) != rownames(alpha_mat)){
+    stop("'rs' and 'N' names must match the row names of 'alpha_mat'")
+  } else if (missing(obs_error_dist) == FALSE & obs_error_dist %in% c("normal","poisson","nb") == FALSE){
+    stop("specified observation error distribution 'obs_error_dist' must be one of 'normal', 'poisson', or 'nb'")
+  }
+  # now the actual operations
+  comp_coef <- alpha_mat %*% N
+  if (model == "LV"){
+    fecund <- (rs %*% (1-comp_coef))[spi]
+  } else if (model == "BH"){
+    fecund <- (rs %*% 1/(1+comp_coef))[spi]
+  } else if (model == "R"){
+    fecund <- (rs %*% exp(-comp_coef))[spi]
+  }
+  if (missing(obs_error_dist)){
+    return(fecund)
+  } else if (obs_error_dist == "normal"){
+    return(rnorm(n=1, mean=fecund, sigma=...))
+  } else if (obs_error_dist == "poisson"){
+    return(rpois(1,lambda = fecund))
+  }
+}
+```
 
 
 
