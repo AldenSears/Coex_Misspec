@@ -187,19 +187,21 @@ gen_gen <- function(spi,rs,N,alpha_mat,model,obs_error_dist,...){
     stop("vector lengths and alpha_mat row and column lengths must all be equal")
   } else if (spi %in% rownames(alpha_mat) == FALSE){
     stop("focal species 'spi' must have the same name as one of the rows in 'alpha_mat'")
-  } else if (names(rs) != rownames(alpha_mat) | names(N) != rownames(alpha_mat)){
+  } else if ((names(rs) != rownames(alpha_mat))[1] | (names(N) != rownames(alpha_mat))[1]){
     stop("'rs' and 'N' names must match the row names of 'alpha_mat'")
-  } else if (missing(obs_error_dist) == FALSE & obs_error_dist %in% c("normal","poisson","nb") == FALSE){
-    stop("specified observation error distribution 'obs_error_dist' must be one of 'normal', 'poisson', or 'nb'")
+  } else if (missing(obs_error_dist) == FALSE){
+    if (obs_error_dist %in% c("normal","poisson","nb") == FALSE){
+      stop("specified observation error distribution 'obs_error_dist' must be one of 'normal', 'poisson', or 'nb'")
+    }
   }
   # now the actual operations
   comp_coef <- alpha_mat %*% N
   if (model == "LV"){
-    fecund <- (rs %*% (1-comp_coef))[spi]
+    fecund <- ((1-comp_coef[spi,]) %*% rs[spi])
   } else if (model == "BH"){
-    fecund <- (rs %*% 1/(1+comp_coef))[spi]
+    fecund <- (1/(1+comp_coef[spi,]) %*% rs[spi])
   } else if (model == "R"){
-    fecund <- (rs %*% exp(-comp_coef))[spi]
+    fecund <- (exp(-comp_coef[spi,]) %*% rs[spi])
   }
   if (missing(obs_error_dist)){
     return(fecund)
@@ -209,6 +211,14 @@ gen_gen <- function(spi,rs,N,alpha_mat,model,obs_error_dist,...){
     return(rpois(1,lambda = fecund))
   }
 }
+
+#now time to simulate data: choose rs, alpha_mat, N
+spi <- "a"
+rs <- c("a"=50,"b"=68,"c"=25)
+N <- c("a"=30,"b"=24,"c"=41)
+alpha_mat <- matrix(c(0.0078,0.0056,0.0034,0.0067,0.005,0.0016,0.0053,0.007,0.0034),ncol=3,byrow = TRUE,
+                    dimnames = list(c("a","b","c"),c("a","b","c")))
+multi_dat <- gen_gen(spi=spi,rs=rs,N=N,alpha_mat=alpha_mat,model = "LV")
 ```
 
 
