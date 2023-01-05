@@ -134,7 +134,7 @@ sd<-5
 n<-100
 
 rickdat<-tibble(Ni=sample(0:100,size=n,replace = TRUE),
-                Nj=sample(0:100,size=n,replace=TRUE)) %>%
+                Nj=sample(0:100,size=n,replace = TRUE)) %>%
   mutate(y=map2_dbl(.x=Ni,.y=Nj,.f=~ricknorm(Ni=.x,Nj=.y,lami=lami,aii=aii,aij=aij,sd=sd)))
 
 #nls model
@@ -204,21 +204,31 @@ gen_gen <- function(spi,rs,N,alpha_mat,model,obs_error_dist,...){
     fecund <- (exp(-comp_coef[spi,]) %*% rs[spi])
   }
   if (missing(obs_error_dist)){
-    return(fecund)
+    return(as.numeric(fecund))
   } else if (obs_error_dist == "normal"){
-    return(rnorm(n=1, mean=fecund, sigma=...))
+    return(rnorm(n=1, mean=fecund, sd=...))
   } else if (obs_error_dist == "poisson"){
     return(rpois(1,lambda = fecund))
   }
 }
 
-#now time to simulate data: choose rs, alpha_mat, N
+# time to simulate data: choose rs, alpha_mat, N
 spi <- "a"
 rs <- c("a"=50,"b"=68,"c"=25)
 N <- c("a"=30,"b"=24,"c"=41)
 alpha_mat <- matrix(c(0.0078,0.0056,0.0034,0.0067,0.005,0.0016,0.0053,0.007,0.0034),ncol=3,byrow = TRUE,
                     dimnames = list(c("a","b","c"),c("a","b","c")))
 multi_dat <- gen_gen(spi=spi,rs=rs,N=N,alpha_mat=alpha_mat,model = "LV")
+
+# AHAHAHAHA IT WORKSSS!!!
+set.seed(666)
+
+multi <- tibble(Na=sample(1:100, size = 100, replace = TRUE),
+                Nb=sample(1:100, size = 100, replace = TRUE),
+                Nc=sample(1:100, size = 100, replace = TRUE),
+                Nd=sample(1:100, size = 100, replace = TRUE))
+  mutate(y=mapply(FUN = gen_gen(),))
+
 ```
 
 
