@@ -219,15 +219,59 @@ N <- c("a"=30,"b"=24,"c"=41)
 alpha_mat <- matrix(c(0.0078,0.0056,0.0034,0.0067,0.005,0.0016,0.0053,0.007,0.0034),ncol=3,byrow = TRUE,
                     dimnames = list(c("a","b","c"),c("a","b","c")))
 multi_dat <- gen_gen(spi=spi,rs=rs,N=N,alpha_mat=alpha_mat,model = "LV")
+multi_dat_oe <- gen_gen(spi=spi,rs=rs,N=N,alpha_mat=alpha_mat,model = "LV",obs_error_dist = "normal",sd=1)
 
 # AHAHAHAHA IT WORKSSS!!!
 set.seed(666)
 
-multi <- tibble(Na=sample(1:100, size = 100, replace = TRUE),
-                Nb=sample(1:100, size = 100, replace = TRUE),
-                Nc=sample(1:100, size = 100, replace = TRUE),
-                Nd=sample(1:100, size = 100, replace = TRUE))
-  mutate(y=mapply(FUN = gen_gen(),))
+spi <- "a"
+rs <- c("a"=50,"b"=68,"c"=25,"d"=14)
+alpha_mat <- matrix(c(0.0078,0.0056,0.0034,0.0048,0.0067,0.005,0.0016,0.0087,
+                      0.0053,0.007,0.0034,0.0024,0.0054,0.004,0.0031,0.0017),
+                    ncol=4,byrow=TRUE,dimnames=list(c("a","b","c","d"),c("a","b","c","d")))
+model <- "LV"
+obs_error_dist <- "normal"
+sd=1
+
+Na=sample(1:100, size = 100, replace = TRUE)
+Nb=sample(1:100, size = 100, replace = TRUE)
+Nc=sample(1:100, size = 100, replace = TRUE)
+Nd=sample(1:100, size = 100, replace = TRUE)
+names(Na)<-rep("a",100)
+names(Nb)<-rep("b",100)
+names(Nc)<-rep("c",100)
+names(Nd)<-rep("d",100)
+
+multi <- tibble(Na,Nb,Nc,Nd,y=NA)
+for (i in 1:length(multi$Na)){
+  multi$y[i] <- gen_gen(spi=spi,rs=rs,N=c(multi$Na[i],multi$Nb[i],multi$Nc[i],
+                        multi$Nd[i]),alpha_mat=alpha_mat,model=model,obs_error_dist=obs_error_dist,sd=sd)
+}
+
+# working on a generating function that can write brms-compatible functions with nl parameters,
+# for any number of species and for any choice of dynamics
+
+bfwriter <- function(nspec,dynam){
+  alphas <- list("aaa","aab","aac","aad","aae","aaf","aag","aah","aai","aaj","aak","aal","aam","aan")
+  ins <- list("Na","Nb","Nc","Nd","Ne","Nf","Ng","Nh","Ni","Nj","Nk","Nl","Nm","Nn")
+  if (dynam == "LV"){
+    eq <- "formula=as.formula(y~lami*(1"
+    for (i in 1:nspec){
+      eq <- paste(eq,"-",alphas[[i]],"*",ins[[i]],sep="")
+    }
+    eq <- paste(eq,"))",sep="")
+    nlps <- ",nl=TRUE,lami~1"
+    for (i in 1:nspec){
+      nlps <- paste(nlps,",",alphas[[i]],"~1",sep="")
+    }
+    written <- paste(dynam,"multi <- bf(",eq,nlps,")",sep="")
+    return(written)
+  }
+}
+
+eval(parse(text=bfwriter(4,"LV")))
+get_prior(LVmulti,family="gaussian",data=multi)
+
 
 ```
 
