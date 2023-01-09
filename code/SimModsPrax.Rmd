@@ -251,30 +251,52 @@ for (i in 1:length(multi$Na)){
 # working on a generating function that can write brms-compatible functions with nl parameters,
 # for any number of species and for any choice of dynamics
 
-bfwriter <- function(nspec,dynam){
-  alphas <- list("aaa","aab","aac","aad","aae","aaf","aag","aah","aai","aaj","aak","aal","aam","aan")
-  ins <- list("Na","Nb","Nc","Nd","Ne","Nf","Ng","Nh","Ni","Nj","Nk","Nl","Nm","Nn")
+bfwriter <- function(nspec,spi,dynam){
+  multilist <- list("a"=c("aaa*Na","aab*Nb","aac*Nc","aad*Nd","aae*Ne","aaf*Nf","aag*Ng","aah*Nh","aai*Ni","aaj*Nj"),
+                  "b"=c("aba*Na","abb*Nb","abc*Nc","abd*Nd","abe*Ne","abf*Nf","abg*Ng","abh*Nh","abi*Ni","abj*Nj"),
+                  "c"=c("aca*Na","acb*Nb","acc*Nc","acd*Nd","ace*Ne","acf*Nf","acg*Ng","ach*Nh","aci*Ni","acj*Nj"),
+                  "d"=c("ada*Na","adb*Nb","adc*Nc","add*Nd","ade*Ne","adf*Nf","adg*Ng","adh*Nh","adi*Ni","adj*Nj"),
+                  "e"=c("aea*Na","aeb*Nb","aec*Nc","aed*Nd","aee*Ne","aef*Nf","aeg*Ng","aeh*Nh","aei*Ni","aej*Nj"),
+                  "f"=c("afa*Na","afb*Nb","afc*Nc","afd*Nd","afe*Ne","aff*Nf","afg*Ng","afh*Nh","afi*Ni","afj*Nj"),
+                  "g"=c("aga*Na","agb*Nb","agc*Nc","agd*Nd","age*Ne","agf*Nf","agg*Ng","agh*Nh","agi*Ni","agj*Nj"),
+                  "h"=c("aha*Na","ahb*Nb","ahc*Nc","ahd*Nd","ahe*Ne","ahf*Nf","ahg*Ng","ahh*Nh","ahi*Ni","ahj*Nj"),
+                  "i"=c("aia*Na","aib*Nb","aic*Nc","aid*Nd","aie*Ne","aif*Nf","aig*Ng","aih*Nh","aii*Ni","aij*Nj"),
+                  "j"=c("aja*Na","ajb*Nb","ajc*Nc","ajd*Nd","aje*Ne","ajf*Nf","ajg*Ng","ajh*Nh","aji*Ni","ajj*Nj"))
   if (dynam == "LV"){
     eq <- "formula=as.formula(y~lami*(1"
     for (i in 1:nspec){
-      eq <- paste(eq,"-",alphas[[i]],"*",ins[[i]],sep="")
+      eq <- paste(eq,"-",multilist[[spi]][i],sep="")
     }
     eq <- paste(eq,"))",sep="")
     nlps <- ",nl=TRUE,lami~1"
     for (i in 1:nspec){
-      nlps <- paste(nlps,",",alphas[[i]],"~1",sep="")
+      nlps <- paste(nlps,",",substr(multilist[[spi]][i],1,3),"~1",sep="")
     }
     written <- paste(dynam,"multi <- bf(",eq,nlps,")",sep="")
     return(written)
+  } else if (dynam == "BH"){
+    eq <- "formula=as.formula(y~lami/(1"
+  } else if (dynam == "R"){
+    
+  } else {
+    stop("specify dynam as one of 'LV','BH', or 'R'")
   }
 }
 
-eval(parse(text=bfwriter(4,"LV")))
+eval(parse(text=bfwriter(4,"a","LV")))
 get_prior(LVmulti,family="gaussian",data=multi)
 
+multipriors <- prior(normal(1000,5000),lb=0,nlpar="lami")+
+  prior(uniform(0,0.1),lb=0,ub=0.1,nlpar="aaa")+
+  prior(uniform(0,0.1),lb=0,ub=0.1,nlpar="aab")+
+  prior(uniform(0,0.1),lb=0,ub=0.1,nlpar="aac")+
+  prior(uniform(0,0.1),lb=0,ub=0.1,nlpar="aad")
+multimod <- brm(LVmulti,data=multi,family=gaussian(),
+                backend="cmdstanr",cores=6,prior=multipriors)
+print(summary(multimod),digits=5)
 
+#It works and it is HELLA accurate
 ```
-
 
 
 
