@@ -10,12 +10,6 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r Simulation of continuous-time LV data}
-library(deSolve)
-library(cmdstanr)
-library(rstan)
-library(rethinking)
-library(posterior)
-library(dplyr)
 LVM <- function (t, init, pars) {
     with(as.list(c(init, pars)), {
         dx = r1*(1-a11*x-a12*y)
@@ -41,13 +35,19 @@ legend("topright", c("Species 1", "Species 2"), lty = c(1,2), col = c(1,2), box.
 ```
 
 ```{r Simulate data the WKP way}
+set.seed(666)
 library(tidyverse)
 library(nlstools)
 library(brms)
 library(tidybayes)
 library(modelr)
+library(deSolve)
+library(cmdstanr)
+library(rstan)
+library(rethinking)
+library(posterior)
+library(dplyr)
 
-set.seed(666)
 lvform<-as.formula(y~lami*(1-aii*Ni-aij*Nj))
 lvnorm<-function(lami,aii,Ni,aij,Nj,sd){
   out<-rnorm(n=1,mean=(lami*(1-aii*Ni-aij*Nj)),sd=sd)

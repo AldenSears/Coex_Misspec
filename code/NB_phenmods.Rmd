@@ -1,0 +1,82 @@
+---
+title: "NB_phenmods"
+author: "Alden Sears"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r Nicholson-Bailey model}
+library(tidyverse)
+library(dplyr)
+NBM <- function(t, y, parms){
+  NBMres <- tibble(Time = c(t), Prey = c(t), Pred = c(t))
+  prey <- y["prey"]
+  pred <- y["pred"]
+  lambda <- parms["lambda"]
+  search <- parms["search"]
+  conv <- parms["conv"]
+  for (i in 1:length(t)){
+    NBMres$Prey[i] <- prey
+    NBMres$Pred[i] <- pred
+    prey <- lambda * prey * exp(-search * pred)
+    pred <- conv * NBMres$Prey[i] * (1-exp(-search * pred))
+  }
+  return(NBMres)
+}
+
+time <- seq(from=1,to=30, by=1)
+init <- c(prey = 40, pred = 15)
+pars <- c(lambda = 2, search = 0.05, conv = 0.5)
+out <- NBM(t=time,y=init,parms=pars)
+
+plot(out$Prey~out$Time,type="l",ylim=c(0,600))
+lines(out$Time,out$Pred)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
