@@ -9,34 +9,85 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r Nicholson-Bailey model}
+```{r Nicholson-Bailey model from Doebeli 1997}
+set.seed(666)
 library(tidyverse)
 library(dplyr)
 NBM <- function(t, y, parms){
+  
   NBMres <- tibble(Time = c(t), Prey = c(t), Pred = c(t))
   prey <- y["prey"]
   pred <- y["pred"]
   lambda <- parms["lambda"]
   search <- parms["search"]
   conv <- parms["conv"]
+  
+  # lambda = prey growth rate
+  # search = predator search efficiency
+  # conv = conversion rate of prey consumed to predators birthed
+  
   for (i in 1:length(t)){
     NBMres$Prey[i] <- prey
     NBMres$Pred[i] <- pred
     prey <- lambda * prey * exp(-search * pred)
     pred <- conv * NBMres$Prey[i] * (1-exp(-search * pred))
   }
+  
   return(NBMres)
 }
 
-time <- seq(from=1,to=30, by=1)
+time <- seq(from = 1,to = 20, by = 1)
 init <- c(prey = 40, pred = 15)
 pars <- c(lambda = 2, search = 0.05, conv = 0.5)
-out <- NBM(t=time,y=init,parms=pars)
+out <- NBM(time, init, pars)
+out$dPred <- c(0, out$Pred[2:length(out$Pred)] - out$Pred[1:length(out$Pred)-1])
 
-plot(out$Prey~out$Time,type="l",ylim=c(0,600))
-lines(out$Time,out$Pred)
+plot(Prey ~ Time, type = "l", data = out, ylim = c(0,max(Prey)))
+lines(out$Time, out$Pred, lty = "dashed")
+plot(dPred ~ Time, type = "l", data = out)
 ```
 
+```{r Khan & Qureshi 2015 modified NBM}
+mNBM <- function(t, y, parms){
+  mNBMres <- tibble(Time = c(t), Host = c(t), Para = c(t))
+  host <- y["host"]
+  para <- y["para"]
+  a <- parms["a"]
+  b <- parms["b"]
+  c <- parms["c"]
+  d <- parms["d"]
+  # a = attack rate
+  # b = unparasitized host birth rate
+  # c = hatch rate of parasitoid
+  # d = density dependence factor of host
+  
+  for (i in 1:length(t)){
+    mNBMres$Host[i] <- host
+    mNBMres$Para[i] <- para
+    host <- b * host * exp(-a * para) / (1 + d * host)
+    para <- c * mNBMres$Host[i] * (1 - exp(-a * para))
+  }
+  
+  return(mNBMres)
+}
+
+time <- seq(1, 500, 1)
+init <- c(host = 40, para = 15)
+pars <- c(a = 0.05, b = 2, c = 0.5, d = 0.008)
+
+# d of 0.008 leads to stabilization after several cycles of decreasing amplitude
+# d of 0.002 leads to parasitoid extinction and host reaches carrying capacity
+# intermediate values of d allow for cycles of varying trends in amplitude (sometimes stable, sometimes increasing, sometimes decreasing)
+
+res <- mNBM(time, init, pars)
+res$dPara <- c(0, res$Para[2:length(res$Para)] - res$Para[1:length(res$Para)-1])
+
+plot(Host ~ Time, type = "l", data = res, ylim = c(0,max(Host)))
+lines(res$Time, res$Para, lty = "dashed")
+plot(dPara ~ Time, type = "l", data = res)
+
+# equation at the end of the paper could be coded as a check for stability—indicates the stability of a local equilibrium point given values of a, b, c, and d
+```
 
 
 
