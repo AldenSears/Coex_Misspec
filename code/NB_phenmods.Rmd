@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r Nicholson-Bailey model from Doebeli 1997}
+```{r Part 1: Nicholson-Bailey model from Doebeli 1997}
 set.seed(666)
 library(tidyverse)
 library(dplyr)
@@ -47,7 +47,7 @@ lines(out$Time, out$Pred, lty = "dashed")
 plot(dPred ~ Time, type = "l", data = out)
 ```
 
-```{r Khan & Qureshi 2015 modified NBM}
+```{r Part 2: Khan & Qureshi 2015 modified NBM}
 mNBM <- function(t, y, parms){
   mNBMres <- tibble(Time = c(t), Host = c(t), Para = c(t))
   host <- y["host"]
@@ -71,9 +71,9 @@ mNBM <- function(t, y, parms){
   return(mNBMres)
 }
 
-time <- seq(1, 500, 1)
+time <- seq(1, 100, 1)
 init <- c(host = 40, para = 15)
-pars <- c(a = 0.05, b = 2, c = 0.5, d = 0.008)
+pars <- c(a = 0.04, b = 2, c = 0.5, d = 0.008)
 
 # d of 0.008 leads to stabilization after several cycles of decreasing amplitude
 # d of 0.002 leads to parasitoid extinction and host reaches carrying capacity
@@ -85,10 +85,15 @@ res$dPara <- c(0, res$Para[2:length(res$Para)] - res$Para[1:length(res$Para)-1])
 plot(Host ~ Time, type = "l", data = res, ylim = c(0,max(Host)))
 lines(res$Time, res$Para, lty = "dashed")
 plot(dPara ~ Time, type = "l", data = res)
+plot(dPara ~ Para, type = "l", data = res)
 
 # equation at the end of the paper could be coded as a check for stability—indicates the stability of a local equilibrium point given values of a, b, c, and d
 ```
 
+```{r Part 3: How the hell do I model this}
+NBMform <- as.formula(dpara ~ c * Host * (1 - exp(-a * para)) - para)
+
+```
 
 
 
