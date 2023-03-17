@@ -90,9 +90,76 @@ plot(dPara ~ Para, type = "l", data = res)
 # equation at the end of the paper could be coded as a check for stability—indicates the stability of a local equilibrium point given values of a, b, c, and d
 ```
 
-```{r Part 3: How the hell do I model this}
-NBMform <- as.formula(dpara ~ c * Host * (1 - exp(-a * para)) - para)
+```{r Part 3: Growth rate vs pop size}
+library(deSolve)
+NBMsolve <- function (t, y, parms) {
+    with(as.list(c(y, parms)), {
+        dpara = c * host * (1 - exp(-a * para)) - para
+        dhost = 0 * para
+        return(list(c(dpara,dhost)))
+    })
+}
 
+times <- c(1:101)
+y <- c(para = 1, host = 58)
+pars <- c(a = 0.04, c = 0.5)
+
+solved <- as.data.frame(ode(y,times,NBMsolve,pars))
+solved$dpara <- c(solved$para[2:101]-solved$para[1:100],0)
+#plot(dpara ~ para, type = "l", data = solved)
+
+library(brms)
+library(tidybayes)
+library(cmdstanr)
+library(posterior)
+library(rstan)
+colnames(solved) <- c("time", "Ni", "host", "y")
+
+LVform <- as.formula(y ~ lami * (1 - aii * Ni))
+lvformbrms <- bf(LVform, lami ~ 1, aii ~ 1, nl = TRUE)
+get_prior(lvformbrms, data = solved, family=gaussian())
+lvpriors <- prior(normal(20,100), nlpar = "lami", lb = 0)+
+  prior(uniform(0,1), lb = 0, ub = 1, nlpar = "aii")
+lvpriorcheck <- brm(lvformbrms,
+                  data = solved,
+                  family = gaussian(),
+                  prior = lvpriors,
+                  backend = "cmdstanr", cores = 6,
+                  sample_prior = "only")
+lvpriorcheck
+
+lvpost <- brm(lvformbrms,
+              data = solved,
+              family = gaussian(),
+              prior = lvpriors,
+              backend = "cmdstanr", cores = 6)
+
+print(summary(lvpost), digits = 5)
+
+rickform <- as.formula(y ~ lami * exp(-aii * Ni))
+rickformbrms <- bf(rickform, lami ~ 1, aii ~ 1, nl = TRUE)
+rickpriors <- prior(normal(20,100),lb=0,nlpar="lami")+
+  prior(uniform(-1,1),lb=-1,ub=1,nlpar="aii")
+
+rickpost <- brm(rickformbrms,
+                data = solved,
+                family = gaussian(),
+                prior = rickpriors,
+                backend = "cmdstanr", cores = 6)
+
+print(summary(rickpost), digits = 5)
+
+
+
+
+
+
+
+fitted_lv <- fitted(lvpost)
+fitted_rick <- fitted(rickpost)
+plot(y ~ Ni, data = solved, type = "l")
+lines(fitted_lv[,1] ~ solved$Ni)
+lines(fitted_rick[,1] ~ solved$Ni)
 ```
 
 
