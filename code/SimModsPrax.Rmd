@@ -62,8 +62,8 @@ n<-100
 
 lvdat<-tibble(Ni=sample(0:100,size=n,replace=TRUE),
               Nj=sample(0:100,size=n,replace=TRUE)) %>%
-  mutate(.data=lvdat,y=map2_dbl(.x=Ni,.y=Nj,
-                              .f<-~lvnorm(Ni=.x,Nj=.y,lami=lami,sd=sd,aij=aij,aii=aii)))
+  mutate(y=map2_dbl(.x=Ni,.y=Nj,
+                    .f <- ~lvnorm(Ni=.x,Nj=.y,lami=lami,sd=sd,aij=aij,aii=aii)))
 
 plot(Ni~Nj,data = lvdat)
 ```

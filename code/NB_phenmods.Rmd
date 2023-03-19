@@ -7,12 +7,20 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-```
 
-```{r Part 1: Nicholson-Bailey model from Doebeli 1997}
 set.seed(666)
 library(tidyverse)
 library(dplyr)
+library(deSolve)
+library(modelr)
+library(brms)
+library(tidybayes)
+library(cmdstanr)
+library(posterior)
+library(rstan)
+```
+
+```{r Part 1: Nicholson-Bailey model from Doebeli 1997}
 NBM <- function(t, y, parms){
   
   NBMres <- tibble(Time = c(t), Prey = c(t), Pred = c(t))
@@ -91,37 +99,41 @@ plot(dPara ~ Para, type = "l", data = res)
 ```
 
 ```{r Part 3: Growth rate vs pop size}
-library(deSolve)
-NBMsolve <- function (t, y, parms) {
-    with(as.list(c(y, parms)), {
-        dpara = c * host * (1 - exp(-a * para)) - para
-        dhost = 0 * para
-        return(list(c(dpara,dhost)))
-    })
+a <- 0.08
+c <- 0.5
+h <- 0.03
+n <- 1e4
+
+NBI <- function(a, c, host, para){
+  out <- c * host * (1 - exp(-a * para)) - para
+}
+NBII <- function(a, c, h, host, para){
+  out <- c * host * (1 - exp((-a * para)/(1 + a * h * host))) - para
 }
 
-times <- c(1:101)
-y <- c(para = 1, host = 58)
-pars <- c(a = 0.04, c = 0.5)
+NBIdat <- tibble(host = sample(0:100, size = n, replace = TRUE),
+                 para = sample(0:100, size = n, replace = TRUE)) %>%
+  mutate(y = map2_dbl(.x = host, .y = para,
+                              .f <- ~NBI(host = .x, para = .y, a = a, c = c)))
 
-solved <- as.data.frame(ode(y,times,NBMsolve,pars))
-solved$dpara <- c(solved$para[2:101]-solved$para[1:100],0)
-colnames(solved) <- c("time", "Ni", "host", "y")
-#plot(dpara ~ para, type = "l", data = solved)
+NBIIdat <- tibble(host = sample(0:100, size = n, replace = TRUE),
+                  para = sample(0:100, size = n, replace = TRUE)) %>%
+  mutate(y = map2_dbl(.x = host, .y = para,
+                              .f <- ~NBII(host = .x, para = .y, a = a, c = c, h = h)))
 
-library(brms)
-library(tidybayes)
-library(cmdstanr)
-library(posterior)
-library(rstan)
+#plot(y ~ host, data = NBIdat)
+#plot(y ~ para, data = NBIIdat)
+#library(ggplot2)
+#ggplot(NBIdat, aes(x = host, y = para, fill = y)) +
+#  geom_tile()
 
-LVform <- as.formula(y ~ lami * (1 - aii * Ni))
+LVform <- as.formula(y ~ lami * (1 - aii * para))
 lvformbrms <- bf(LVform, lami ~ 1, aii ~ 1, nl = TRUE)
-get_prior(lvformbrms, data = solved, family=gaussian())
+get_prior(lvformbrms, data = NBIdat, family=gaussian())
 lvpriors <- prior(normal(20,100), nlpar = "lami", lb = 0)+
-  prior(uniform(0,1), lb = 0, ub = 1, nlpar = "aii")
+  prior(uniform(-1,1), lb = -1, ub = 1, nlpar = "aii")
 lvpriorcheck <- brm(lvformbrms,
-                  data = solved,
+                  data = NBIdat,
                   family = gaussian(),
                   prior = lvpriors,
                   backend = "cmdstanr", cores = 6,
@@ -129,31 +141,29 @@ lvpriorcheck <- brm(lvformbrms,
 lvpriorcheck
 
 lvpost <- brm(lvformbrms,
-              data = solved,
+              data = NBIdat,
               family = gaussian(),
               prior = lvpriors,
               backend = "cmdstanr", cores = 6)
 
 print(summary(lvpost), digits = 5)
 
-rickform <- as.formula(y ~ lami * exp(-aii * Ni))
+rickform <- as.formula(y ~ lami * exp(-aii * para))
 rickformbrms <- bf(rickform, lami ~ 1, aii ~ 1, nl = TRUE)
 rickpriors <- prior(normal(20,100),lb=0,nlpar="lami")+
   prior(uniform(-1,1),lb=-1,ub=1,nlpar="aii")
 
 rickpost <- brm(rickformbrms,
-                data = solved,
+                data = NBIdat,
                 family = gaussian(),
                 prior = rickpriors,
                 backend = "cmdstanr", cores = 6)
 
 print(summary(rickpost), digits = 5)
 
-fitted_lv <- fitted(lvpost)
-fitted_rick <- fitted(rickpost)
-plot(y ~ Ni, data = solved, type = "l")
-lines(fitted_lv[,1] ~ solved$Ni)
-lines(fitted_rick[,1] ~ solved$Ni)
+curve(c * 100 * (1 - exp(-a * x)) - x, from = 0, to = 100)
+curve(fixef(lvpost)[1] * (1 - fixef(lvpost)[2] * x), add = TRUE)
+curve(fixef(rickpost)[1] * exp(-fixef(rickpost)[2] * x), add = TRUE)
 ```
 
 
