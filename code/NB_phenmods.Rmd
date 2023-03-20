@@ -81,7 +81,7 @@ mNBM <- function(t, y, parms){
 
 time <- seq(1, 100, 1)
 init <- c(host = 40, para = 15)
-pars <- c(a = 0.04, b = 2, c = 0.5, d = 0.008)
+pars <- c(a = 0.1, b = 2, c = 0.5, d = 0.02)
 
 # d of 0.008 leads to stabilization after several cycles of decreasing amplitude
 # d of 0.002 leads to parasitoid extinction and host reaches carrying capacity
@@ -99,16 +99,20 @@ plot(dPara ~ Para, type = "l", data = res)
 ```
 
 ```{r Part 3: Growth rate vs pop size}
-a <- 0.08
+a <- 0.1
+b <- 2
 c <- 0.5
-h <- 0.03
-n <- 1e4
+d <- 0.02
+h <- 0.8
+n <- 1e3
 
 NBI <- function(a, c, host, para){
-  out <- c * host * (1 - exp(-a * para)) - para
+  out <- c * host * (1 - exp(-a * para)) / para
+  # this is the per-capita growth rate of the parasite population
 }
 NBII <- function(a, c, h, host, para){
-  out <- c * host * (1 - exp((-a * para)/(1 + a * h * host))) - para
+  out <- c * host * (1 - exp((-a * para)/(1 + a * h * host))) / para
+  # ditto
 }
 
 NBIdat <- tibble(host = sample(0:100, size = n, replace = TRUE),
@@ -121,8 +125,8 @@ NBIIdat <- tibble(host = sample(0:100, size = n, replace = TRUE),
   mutate(y = map2_dbl(.x = host, .y = para,
                               .f <- ~NBII(host = .x, para = .y, a = a, c = c, h = h)))
 
-#plot(y ~ host, data = NBIdat)
-#plot(y ~ para, data = NBIIdat)
+plot(y ~ para, data = NBIdat)
+plot(y ~ para, data = NBIIdat)
 #library(ggplot2)
 #ggplot(NBIdat, aes(x = host, y = para, fill = y)) +
 #  geom_tile()
@@ -132,38 +136,78 @@ lvformbrms <- bf(LVform, lami ~ 1, aii ~ 1, nl = TRUE)
 get_prior(lvformbrms, data = NBIdat, family=gaussian())
 lvpriors <- prior(normal(20,100), nlpar = "lami", lb = 0)+
   prior(uniform(-1,1), lb = -1, ub = 1, nlpar = "aii")
-lvpriorcheck <- brm(lvformbrms,
-                  data = NBIdat,
-                  family = gaussian(),
-                  prior = lvpriors,
-                  backend = "cmdstanr", cores = 6,
-                  sample_prior = "only")
-lvpriorcheck
 
-lvpost <- brm(lvformbrms,
+#lvpriorcheck <- brm(lvformbrms,
+#                  data = NBIdat,
+#                  family = gaussian(),
+#                  prior = lvpriors,
+#                  backend = "cmdstanr", cores = 6,
+#                  sample_prior = "only")
+#lvpriorcheck
+
+lvpostI <- brm(lvformbrms,
               data = NBIdat,
               family = gaussian(),
               prior = lvpriors,
               backend = "cmdstanr", cores = 6)
 
-print(summary(lvpost), digits = 5)
+#print(summary(lvpostI), digits = 5)
 
 rickform <- as.formula(y ~ lami * exp(-aii * para))
 rickformbrms <- bf(rickform, lami ~ 1, aii ~ 1, nl = TRUE)
 rickpriors <- prior(normal(20,100),lb=0,nlpar="lami")+
   prior(uniform(-1,1),lb=-1,ub=1,nlpar="aii")
 
-rickpost <- brm(rickformbrms,
+rickpostI <- brm(rickformbrms,
                 data = NBIdat,
                 family = gaussian(),
                 prior = rickpriors,
                 backend = "cmdstanr", cores = 6)
 
-print(summary(rickpost), digits = 5)
+#print(summary(rickpostI), digits = 5)
 
-curve(c * 100 * (1 - exp(-a * x)) - x, from = 0, to = 100)
-curve(fixef(lvpost)[1] * (1 - fixef(lvpost)[2] * x), add = TRUE)
-curve(fixef(rickpost)[1] * exp(-fixef(rickpost)[2] * x), add = TRUE)
+bhform <- as.formula(y ~ lami/(1 + aii * para))
+bhformbrms <- bf(rickform, lami ~ 1, aii ~ 1, nl = TRUE)
+bhpriors <- prior(normal(20,100),lb=0,nlpar="lami")+
+  prior(uniform(-1,1),lb=-1,ub=1,nlpar="aii")
+
+bhpostI <- brm(bhformbrms,
+              data = NBIdat,
+              family = gaussian(),
+              prior = bhpriors,
+              backend = "cmdstanr", cores = 6)
+
+#print(summary(bhpostI), digits = 5)
+
+lvpostII <- brm(lvformbrms,
+              data = NBIIdat,
+              family = gaussian(),
+              prior = lvpriors,
+              backend = "cmdstanr", cores = 6)
+
+rickpostII <- brm(rickformbrms,
+              data = NBIIdat,
+              family = gaussian(),
+              prior = rickpriors,
+              backend = "cmdstanr", cores = 6)
+
+bhpostII <- brm(bhformbrms,
+                data = NBIIdat,
+                family = gaussian(),
+                prior = bhpriors,
+                backend = "cmdstanr", cores = 6)
+
+# don't forget to do some checks. solve the equation to find the equilibrium point, plot things to see if they line up with equilibria
+
+# need to be fixed
+curve(c * 58 * (1 - exp(-a * x)) / x, from = 0, to = 100)
+curve(fixef(lvpostI)[1] * (1 - fixef(lvpostI)[2] * x), add = TRUE, lty = "dashed")
+curve(fixef(rickpostI)[1] * exp(-fixef(rickpostI)[2] * x), add = TRUE, lty = "dotted")
+curve(fixef(bhpostI)[1]/(1 + fixef(bhpostI)[2] * x), add = TRUE, lty = "dotdash")
+#curve(b * exp((-a * 36)/(1 + a * h * x)) / (1 + d * x), from = 0, to = 1000, ylim = c(0, 1.5))
+#curve(fixef(lvpostII)[1] * (1 - fixef(lvpostII)[2] * x), add = TRUE, lty = "dashed")
+#curve(fixef(rickpostII)[1] * exp(-fixef(rickpostII)[2] * x), add = TRUE, lty = "dotted")
+#curve(fixef(bhpostII)[1]/(1 + fixef(bhpostII)[2] * x), add = TRUE, lty = "dotdash")
 ```
 
 
