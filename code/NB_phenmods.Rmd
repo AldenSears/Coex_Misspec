@@ -103,30 +103,32 @@ a <- 0.1
 b <- 2
 c <- 0.5
 d <- 0.02
-h <- 0.8
+h <- 0.2
 n <- 1e3
 
 NBI <- function(a, c, host, para){
-  out <- c * host * (1 - exp(-a * para)) / para
+  out <- rnorm(1, c * host * (1 - exp(-a * para)) / para, 0.1)
   # this is the per-capita growth rate of the parasite population
 }
 NBII <- function(a, c, h, host, para){
-  out <- c * host * (1 - exp((-a * para)/(1 + a * h * host))) / para
+  out <- rnorm(1, c * host * (1 - exp((-a * para)/(1 + a * h * host))) / para, 0.1)
   # ditto
 }
 
-NBIdat <- tibble(host = sample(0:100, size = n, replace = TRUE),
+NBIdat <- tibble(host = rep(24, n),
                  para = sample(0:100, size = n, replace = TRUE)) %>%
   mutate(y = map2_dbl(.x = host, .y = para,
                               .f <- ~NBI(host = .x, para = .y, a = a, c = c)))
 
-NBIIdat <- tibble(host = sample(0:100, size = n, replace = TRUE),
+NBIIdat <- tibble(host = rep(24, n),
                   para = sample(0:100, size = n, replace = TRUE)) %>%
   mutate(y = map2_dbl(.x = host, .y = para,
                               .f <- ~NBII(host = .x, para = .y, a = a, c = c, h = h)))
 
-plot(y ~ para, data = NBIdat)
-plot(y ~ para, data = NBIIdat)
+plot(y ~ para, data = na.omit(NBIdat))
+abline(h = 1)
+plot(y ~ para, data = na.omit(NBIIdat))
+abline(h = 1)
 #library(ggplot2)
 #ggplot(NBIdat, aes(x = host, y = para, fill = y)) +
 #  geom_tile()
@@ -199,18 +201,67 @@ bhpostII <- brm(bhformbrms,
 
 # don't forget to do some checks. solve the equation to find the equilibrium point, plot things to see if they line up with equilibria
 
-# need to be fixed
-curve(c * 58 * (1 - exp(-a * x)) / x, from = 0, to = 100)
+curve(c * 24 * (1 - exp(-a * x)) / x, from = 0, to = 100, ylab = "Per-capita growth rate of parasitoid", xlab = "Parasitoid population density")
 curve(fixef(lvpostI)[1] * (1 - fixef(lvpostI)[2] * x), add = TRUE, lty = "dashed")
 curve(fixef(rickpostI)[1] * exp(-fixef(rickpostI)[2] * x), add = TRUE, lty = "dotted")
 curve(fixef(bhpostI)[1]/(1 + fixef(bhpostI)[2] * x), add = TRUE, lty = "dotdash")
-#curve(b * exp((-a * 36)/(1 + a * h * x)) / (1 + d * x), from = 0, to = 1000, ylim = c(0, 1.5))
-#curve(fixef(lvpostII)[1] * (1 - fixef(lvpostII)[2] * x), add = TRUE, lty = "dashed")
-#curve(fixef(rickpostII)[1] * exp(-fixef(rickpostII)[2] * x), add = TRUE, lty = "dotted")
-#curve(fixef(bhpostII)[1]/(1 + fixef(bhpostII)[2] * x), add = TRUE, lty = "dotdash")
+legend("topright",legend = c("True relationship","LV model","Ricker model","BH model"),lty = c("solid","dashed","dotted","dotdash"))
+curve(c * 24 * (1 - exp((-a * x)/(1 + a * h * 24))) / x, from = 0, to = 100, ylab = "Per-capita growth rate of parasitoid", xlab = "Parasitoid population density")
+curve(fixef(lvpostII)[1] * (1 - fixef(lvpostII)[2] * x), add = TRUE, lty = "dashed")
+curve(fixef(rickpostII)[1] * exp(-fixef(rickpostII)[2] * x), add = TRUE, lty = "dotted")
+curve(fixef(bhpostII)[1]/(1 + fixef(bhpostII)[2] * x), add = TRUE, lty = "dotdash")
+legend("topright",legend = c("True relationship","LV model","Ricker model","BH model"),lty = c("solid","dashed","dotted","dotdash"))
 ```
 
+```{r Part 4: 2 species toybox}
+tomb <- function(t, y, parms){
+  tombres <- tibble(Time = c(t), Host = c(t), P1 = c(t), P2 = c(t))
+  host <- y["host"]
+  p1 <- y["p1"]
+  p2 <- y["p2"]
+  a <- 0.1
+  b <- parms["b"]
+  c1 <- parms["c1"]
+  c2 <- parms["c2"]
+  d <- parms["d"]
+  # a = attack rate
+  # b = unparasitized host birth rate
+  # c1 = hatch rate of parasitoid 1
+  # c2 = hatch rate of parasitoid 2
+  # d = density dependence factor of host
+  
+  for (i in 1:length(t)){
+    tombres$Host[i] <- host
+    tombres$P1[i] <- p1
+    tombres$P2[i] <- p2
+    host <- b * host * exp(-a * (p1 + p2)) / (1 + d * host)
+    p1 <- c1 * tombres$Host[i] * (1 - exp(-a * p1)) * exp(-a * p2)
+    p2 <- c2 * tombres$Host[i] * (1 - exp(-a * p2)) * exp(-a * p1)
+  }
+  
+  return(tombres)
+}
 
+time <- seq(1, 100, 1)
+init <- c(host = 40, p1 = 3, p2 = 5)
+pars <- c(a = 0.1, b = 2, c1 = 0.44, c2 = 0.4, d = 0.02)
+
+ded <- tomb(time,init,pars)
+
+plot(Host ~ Time, data = ded, type = "l", ylim = c(0,max(ded$Host)))
+lines(ded$Time, ded$P1, lty = "dashed")
+lines(ded$Time, ded$P2, lty = "dotdash")
+```
+
+```{r Part 5: 2 species sims}
+a <- 0.1
+b <- 2
+c1 <- 0.5
+c2 <- 0.3
+d <- 0.02
+h <- 
+
+```
 
 
 
