@@ -18,6 +18,7 @@ library(tidybayes)
 library(cmdstanr)
 library(posterior)
 library(rstan)
+library(msm)
 ```
 
 ```{r Part 1: Nicholson-Bailey model from Doebeli 1997}
@@ -252,7 +253,7 @@ lines(ded$Time, ded$P1, lty = "dashed")
 lines(ded$Time, ded$P2, lty = "dotdash")
 ```
 
-```{r Part 5: 2 species sims}
+```{r Part 5: 2 species sim}
 a <- 0.1
 b <- 2
 c1 <- 0.592
@@ -263,7 +264,7 @@ n <- 1e3
 hosts <- 100
 
 NB2I <- function(a, c1_or_2, host, para1_or_2, para2_or_1){
-  out <- rnorm(1, c1_or_2 * host * (1 - exp(-a * para1_or_2)) * exp(-a * para2_or_1) / para1_or_2, 0)
+  out <- rtnorm(1, c1_or_2 * host * (1 - exp(-a * para1_or_2)) * exp(-a * para2_or_1) / para1_or_2, 0.001, lower = 0)
 }
 NB2Idat <- tibble(Host = rep(hosts, n),
                   Para1 = sample(1:100, size = n, replace = TRUE),
@@ -273,9 +274,32 @@ NB2Idat <- tibble(Host = rep(hosts, n),
   mutate(y2 = map2_dbl(.x = Para2, .y = Para1,
                        .f = ~NB2I(para1_or_2 = .x, para2_or_1 = .y, host = hosts, a = a, c1_or_2 = c2)))
 
+lv1form <- bf(as.formula(y1 ~ r1 * (1 - a11 * Para1 - a12 * Para2)), r1 ~ 1, a11 ~ 1, a12 ~ 1, nl = TRUE)
+lv2form <- bf(as.formula(y2 ~ r2 * (1 - a22 * Para2 - a21 * Para1)), r2 ~ 1, a22 ~ 1, a21 ~ 1, nl = TRUE)
+get_prior(lv1form, NB2Idat, gaussian())
+lv1priors <- prior(normal(20,100), nlpar = r1, lb = 0) +
+  prior(uniform(-1,1), ub = 1, lb = -1, nlpar = a11) +
+  prior(uniform(-1,1), ub = 1, lb = -1, nlpar = a12)
+lv2priors <- prior(normal(20,100), nlpar = r2, lb = 0) +
+  prior(uniform(-1,1), ub = 1, lb = -1, nlpar = a22) +
+  prior(uniform(-1,1), ub = 1, lb = -1, nlpar = a21)
+lvm1 <- brm(lv1form, NB2Idat,
+            family = gaussian(),
+            backend = "cmdstanr", cores = 6,
+            prior = lv1priors)
+lvm2 <- brm(lv2form, NB2Idat,
+            family = gaussian(),
+            backend = "cmdstanr", cores = 6,
+            prior = lv2priors)
 
+Nd <- 1 - sqrt(fixef(lvm1)[3] * fixef(lvm2)[3] / (fixef(lvm1)[2] * fixef(lvm2)[2]))
+Fd <- fixef(lvm1)[1] / fixef(lvm2)[2] * sqrt(fixef(lvm2)[2] * fixef(lvm2)[3] / (fixef(lvm1)[2] * fixef(lvm1)[3]))
+Nd > Fd
 ```
 
+```{r Part 6: 2 species with substitutable resource}
+
+```
 
 
 
