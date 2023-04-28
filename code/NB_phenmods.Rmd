@@ -202,11 +202,11 @@ bhpostII <- brm(bhformbrms,
 
 # don't forget to do some checks. solve the equation to find the equilibrium point, plot things to see if they line up with equilibria
 
-curve(c * 24 * (1 - exp(-a * x)) / x, from = 0, to = 100, ylab = "Per-capita growth rate of parasitoid", xlab = "Parasitoid population density")
-curve(fixef(lvpostI)[1] * (1 - fixef(lvpostI)[2] * x), add = TRUE, lty = "dashed")
-curve(fixef(rickpostI)[1] * exp(-fixef(rickpostI)[2] * x), add = TRUE, lty = "dotted")
-curve(fixef(bhpostI)[1]/(1 + fixef(bhpostI)[2] * x), add = TRUE, lty = "dotdash")
-legend("topright",legend = c("True relationship","LV model","Ricker model","BH model"),lty = c("solid","dashed","dotted","dotdash"))
+curve(c * 24 * (1 - exp(-a * x)) / x, from = 0, to = 100, ylab = "Per-capita growth rate of parasitoid", xlab = "Parasitoid population density", las = 1, lwd = 2)
+curve(fixef(lvpostI)[1] * (1 - fixef(lvpostI)[2] * x), add = TRUE, lty = "dashed", lwd = 2)
+curve(fixef(rickpostI)[1] * exp(-fixef(rickpostI)[2] * x), add = TRUE, lty = "dotted", lwd = 2)
+curve(fixef(bhpostI)[1]/(1 + fixef(bhpostI)[2] * x), add = TRUE, lty = "dotdash", lwd = 2)
+legend("topright",legend = c("True relationship","LV model","Ricker model","BH model"),lty = c("solid","dashed","dotted","dotdash"), lwd = c(2, 2, 2, 2))
 curve(c * 24 * (1 - exp((-a * x)/(1 + a * h * 24))) / x, from = 0, to = 100, ylab = "Per-capita growth rate of parasitoid", xlab = "Parasitoid population density")
 curve(fixef(lvpostII)[1] * (1 - fixef(lvpostII)[2] * x), add = TRUE, lty = "dashed")
 curve(fixef(rickpostII)[1] * exp(-fixef(rickpostII)[2] * x), add = TRUE, lty = "dotted")
