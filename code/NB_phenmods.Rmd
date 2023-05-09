@@ -76,7 +76,6 @@ mNBM <- function(t, y, parms){
     host <- b * host * exp(-a * para) / (1 + d * host)
     para <- c * mNBMres$Host[i] * (1 - exp(-a * para))
   }
-  
   return(mNBMres)
 }
 
