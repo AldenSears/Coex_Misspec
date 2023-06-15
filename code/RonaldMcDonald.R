@@ -14,6 +14,7 @@ library(tidybayes)    # data manip and management in bayes
 library(cmdstanr)     # R interface to CmdStan
 library(posterior)    # tools for posterior dists
 library(rstan)        # R interface to Stan
+library(mvtnorm)      # multivariate normal tools
 
 ##############################################################
 # Building a 1-spec R-McA model
@@ -64,6 +65,7 @@ Ronald <- function(N, P, parameters, nsteps, resp, proc_error, obs_error){
     RMcaRes$zN[i] <- zN
     RMcaRes$P[i] <- rnorm(1, mean = zP, sd = obs["P"] * zP)
     RMcaRes$N[i] <- rnorm(1, mean = zN, sd = obs["N"] * zN)
+    ## switch to lognormal for it to prevent getting negative observed densities and 
     RMcaRes$dP[i] <- RMcaRes$P[i] - RMcaRes$P[i-1]
     RMcaRes$dN[i] <- RMcaRes$N[i] - RMcaRes$N[i-1]
   }
@@ -84,26 +86,61 @@ plot(N ~ Time, data = RonDat, type = "l", ylim = c(0,max(N)), lwd = 1)
 lines(RonDat$P, col = "red", lwd = 1)
 
 ##############################################################
-# Building a multipredator R-McA model
+# Building a multispecies R-McA model
 ##############################################################
 
-McDonald <- function(N,               # starting density of prey
-                     Ps,              # starting densities of predators
-                     params,          # "general" parameters (a, r, K, u)
-                     Pparams,         # predator-specific parameters (e, h)
+McDonald <- function(Cs,              # starting densities of consumers
+                     Rs,              # starting densities of resources
+                     params,          # list of consumer parameter sets (a, e, h, u)
+                     Rparams,         # resource-specific parameters (r, K)
                      nsteps,          # number of time steps/generations
                      resp,            # functional response
+                     theta,           # community preference concentration
                      proc_error,      # process error sds (lognormal)
                      obs_error){      # observation error sds (normal)
   
-  res <- tibble(Time = c(1:nsteps), N = c(1:nsteps), zN = c(1:nsteps), dN = c(1:nsteps))
-  for (i in 1:length(Ps)){
-    in_between <- paste("P", i, sep = "")
-    zin_between <- paste("zP", i, sep = "")
-    din_between <- paste("dP", i, sep = "")
+  # data structure setup
+  res <- tibble(Time = c(1:nsteps))
+  
+  for (i in 1:length(Cs)){
+    in_between <- paste("C", i, sep = "")
+    zin_between <- paste("zC", i, sep = "")
+    din_between <- paste("dC", i, sep = "")
     eval(res <- add_column(res, in_between = c(1:nsteps), zin_between = c(1:nsteps),
                            din_between = c(1:nsteps)))
-    colnames(res)[(2+3*i):(4+3*i)] <- c(in_between, zin_between, din_between)
+    colnames(res)[(-1 + 3 * i):(1 + 3 * i)] <- c(in_between, zin_between, din_between)
+  }
+  
+  for (i in 1:length(Rs)){
+    in_between <- paste("R", i, sep = "")
+    zin_between <- paste("zR", i, sep = "")
+    din_between <- paste("dR", i, sep = "")
+    eval(res <- add_column(res, in_between = c(1:nsteps), zin_between = c(1:nsteps),
+                           din_between = c(1:nsteps)))
+    colnames(res)[(-1 + 3 * (i + length(Cs))):(1 + 3 * (i + length(Cs)))] <- c(in_between, zin_between, din_between)
+  }
+  
+  # functional response setting (NEEDS REWORK FOR MULTISPECIES)
+  # if(resp == "HII"){
+  #   f <- expression((a * iR)/(1 + a * h * iR))
+  # } else if(resp == "I"){
+  #   f <- expression(1/h * (1 - exp(-a * h * iR)))
+  # } else if(resp == "Ht"){
+  #   f <- expression(1/h * tan(a * h * iR))
+  # }
+  
+  Smat <- rdirichlet(n = length(Cs), alpha = rep(1 * theta, length(Rs))) %>%
+    as_tibble() %>%
+    rename_with(.cols = everything(), ~str_replace(., "V", "R")) %>%
+    rownames_to_column(var = "C")
+  
+  for (i in 1:length(Rs)){
+    eval(parse(text=paste0("zR",i,"<- Rs[",i,"]")))
+    eval(parse(text=paste0("dR",i,"<-",0)))
+  }
+  
+  for (i in 1:length(Cs)){
+    
   }
   
 }
